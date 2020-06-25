@@ -20,7 +20,11 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.cytoscape.jobs.CyJobData;
 import org.cytoscape.jobs.CyJobDataService;
+import org.cytoscape.jobs.CyJobExecutionService;
+import org.cytoscape.jobs.CyJobStatus;
+import org.cytoscape.jobs.CyJobStatus.Status;
 import org.cytoscape.work.TaskMonitor;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -28,6 +32,7 @@ import org.json.simple.parser.ParseException;
 
 import edu.ucsf.rbvi.clusterJob.internal.handlers.ClusterJobHandler;
 import edu.ucsf.rbvi.clusterJob.internal.model.ClusterJob;
+import edu.ucsf.rbvi.clusterJob.internal.model.ClusterJobData;
 import edu.ucsf.rbvi.clusterJob.internal.model.ClusterJobDataService;
 
 
@@ -36,11 +41,11 @@ public class RemoteServer {
 	private String LOCAL_PATH = "http://localhost:8000/";
 	private String PROD_PATH = "http://webservices.rbvi.ucsf.edu/rest/api/v1/";
 	private String inputFile = "C:\\Users\\maikk\\Documents\\gsoc\\test_input.csv";
-	private ClusterJobExecutionService executionService;
-	private ClusterJobDataService dataService;
+	private CyJobExecutionService executionService;
+	private CyJobDataService dataService;
 	private ClusterJobHandler jobHandler;
 	
-	public RemoteServer(ClusterJobExecutionService executionService, ClusterJobDataService dataService, ClusterJobHandler jobHandler) {
+	public RemoteServer(CyJobExecutionService executionService, CyJobDataService dataService, ClusterJobHandler jobHandler) {
 		this.executionService = executionService;
 		this.dataService = dataService;
 		this.jobHandler = jobHandler;
@@ -110,8 +115,9 @@ public class RemoteServer {
 		//you should use a JSONParser to parse the reply and return that.
 		//the URI is the whole URI of the service
 		//returns the status code and JSONObject (JobID)
-	public JSONObject postFile(String uri, JSONObject jsonData, TaskMonitor monitor, CloseableHttpClient httpClient) throws Exception {
+	public JSONObject postFile(String uri, JSONObject jsonData, TaskMonitor monitor) throws Exception {
 		System.out.println("Posting on: "+uri);
+		CloseableHttpClient httpClient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
 		
 		CloseableHttpResponse response = getPOSTresponse(uri, jsonData, httpClient);
 		
@@ -146,9 +152,10 @@ public class RemoteServer {
 	//CyJobExcService has a checkStatus() and gets results: translate to CyJobStatus that is an ENUM
 	//replace the handle command with an appropriate command of remote server
 	//parse the json
-	public JSONObject fetchJSON(String uri, CloseableHttpClient httpclient, TaskMonitor monitor) throws Exception {
+	public JSONObject fetchJSON(String uri, TaskMonitor monitor) throws Exception {
 		System.out.println("Fetching JSON from: "+uri);
-
+		
+		CloseableHttpClient httpclient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
 		CloseableHttpResponse response = getGETresponse(uri, httpclient);
 		
 		int statusCode = response.getStatusLine().getStatusCode();
@@ -157,8 +164,8 @@ public class RemoteServer {
 			                    response.getStatusLine().getStatusCode()+" code from server");
 			return null;
 		}
-		HttpEntity entity1 = response.getEntity();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(entity1.getContent()));
+		HttpEntity entity = response.getEntity();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent()));
 		
 		JSONObject json = (JSONObject) new JSONParser().parse(reader);
 		return json; //= dictionary, take it and poll from this the status key Map<Key, value> and for key status there is some answer, JSON similar to xml but easier
@@ -170,14 +177,43 @@ public class RemoteServer {
 		
 		return response; //pull the status and --> text string and map to the ENUM --> return ENUM
 	}
-		
-	public Object getJobStatus(JSONObject JSONresponse) {
+	
+	//is this the correct way of getting the key: status? does this give the information we need. My idea here is that the method gets
+	//the JSONObject from fetchJSON and gets the key "status" that has the value of status and returns it .toString()
+	public String getJobStatusString(JSONObject JSONresponse) {
 		Object status = JSONresponse.get("status");
-		return status;
+		return status.toString();
 	}
 	
+	//this method maps the status String returned by getJobStatusString with CyJobStatus.Status and returns the equivalent status
+	//how can I find out what words the JSONObject status uses?
+	public CyJobStatus.Status mapStringStatusToCyJobStatus(String statusString) {
+
+		if (statusString.equals("done")) {
+			return Status.FINISHED;
+		} else if (statusString.equals("fail")) {
+			return Status.ERROR;
+		}
 		
-	public ClusterJob submitJob(TaskMonitor monitor) {
+		return Status.UNKNOWN;
+	}
+	
+	private CyJobStatus getStatus(JSONObject obj) {
+		if (obj.containsKey("jobStatus")) {
+			Status status = Status.valueOf((String)obj.get("jobStatus"));
+			String message = "";
+			if (obj.containsKey("message")) {
+					message = (String)obj.get("message");
+				return new CyJobStatus(status, message);
+			}
+			return new CyJobStatus(status, message);
+		} else if (obj.containsKey("errorMessage")) {
+			return new CyJobStatus(Status.ERROR, (String)obj.get("errorMessage"));
+		}
+		return null;
+	}
+		
+	public void submitJob(TaskMonitor monitor) {
 		
 			//first, make JSONObject of the data file
 		JSONObject data = null;
@@ -188,34 +224,36 @@ public class RemoteServer {
 		}
 		System.out.println(data);
 		
-		CloseableHttpClient httpClient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
-		
 			//choose the service, now leiden
 		String serviceURI = getServiceURI(PROD_PATH, "leiden");
 			
 			//POST (send) the data to the server and get the jobID as the result
-		JSONObject response = null;
+		JSONObject jobIDResponse = null;
 		try {
-			response = postFile(serviceURI, data, monitor, httpClient);
+			jobIDResponse = postFile(serviceURI, data, monitor);
 		} catch (Exception e) {
-			System.out.println("Exception: " + e.getMessage());
+			System.out.println("Exception in postFile: " + e.getMessage());
 		}
 		
-		String jobID = response.toString();
+			//gets the jobID from the JSON. Is this getter necessary? Can I just toString() the whole JSON response?
+		String jobID = jobIDResponse.get("jobId").toString();
 		System.out.println(jobID);
 		
 		ClusterJob clusterJob = new ClusterJob("ClusterJob", PROD_PATH, executionService, dataService, jobHandler, jobID);
 		
-			//GET the results from the server
+			//GET the response containing the status from the server
+		JSONObject statusResponse = null;
 		try {
-			JSONObject results = fetchJSON(serviceURI, httpClient, monitor);
+			statusResponse = fetchJSON(serviceURI, monitor);
 		} catch (Exception e) { 
 			System.out.println("Exception in fetchJSON: " + e.getMessage());
 		}
-			
-		return clusterJob;
-	}
 		
+		CyJobStatus jobStatus = getStatus(statusResponse);
+		System.out.println(jobStatus);
 
-
+	}
+	
+	//need to return the jobID and the status, only that is important for now!!
+		
 }
