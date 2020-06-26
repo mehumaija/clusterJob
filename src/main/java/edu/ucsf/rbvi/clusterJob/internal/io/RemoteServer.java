@@ -54,7 +54,7 @@ public class RemoteServer {
 	public RemoteServer() {
 	}
 		
-		//make the choice between different clustering algorithms/servers
+		//make the choice between different clustering algorithms/servers, this works
 	public String getServiceURI(String server, String service) {
 			
 		if (service.equals("leiden")) {
@@ -76,14 +76,17 @@ public class RemoteServer {
 		return null;
 	}
 		
-	//read the file and create JSONObject
+	//read the file and create JSONObject, this works
 	public JSONObject createJSONObjectFromData(String dataFileName) throws ParseException {
+		
+		System.out.println("Converting to JSON: " + dataFileName);
 			
 		Map<String, List<String>> data = new HashMap<>();
 		List<String> nodesList = new ArrayList<>();
 		List<String> edgesList = new ArrayList<>();
-			
+		
 		try (Scanner scanner = new Scanner(new File(dataFileName))) {
+
 			while (scanner.hasNextLine()) {
 				String edge = scanner.nextLine();
 					
@@ -98,6 +101,7 @@ public class RemoteServer {
 					}
 				}
 			}
+			
 		} catch (Exception e) {
 			System.out.println("Exception reading the file containing the edges data:" + e.getMessage());
 		}
@@ -105,26 +109,30 @@ public class RemoteServer {
 		data.put("nodes", nodesList);
 		data.put("edges", edgesList);
 		
-		JSONParser parser = new JSONParser();
-		JSONObject jsonData = (JSONObject) parser.parse(data.toString());
-			
-		return jsonData;
+	    JSONObject jsonData = new JSONObject();
+	    for (String key : data.keySet()) {
+	        Object value = data.get(key);
+	        jsonData.put(key, value);
+	    }
+	    return jsonData;
+
 	}
 
 		//sends the data
 		//you should use a JSONParser to parse the reply and return that.
 		//the URI is the whole URI of the service
 		//returns the status code and JSONObject (JobID)
-	public JSONObject postFile(String uri, JSONObject jsonData, TaskMonitor monitor) throws Exception {
-		System.out.println("Posting on: "+uri);
+		//doesn't work! response status is 500!
+	public JSONObject postFile(String uri, JSONObject jsonData) throws Exception {
+		System.out.println("Posting on: " + uri);
 		CloseableHttpClient httpClient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
 		
 		CloseableHttpResponse response = getPOSTresponse(uri, jsonData, httpClient);
+		System.out.println(response.toString());
 		
 		int statusCode = response.getStatusLine().getStatusCode();
+		System.out.println(statusCode);
 		if (statusCode != 200 && statusCode != 202) {
-			monitor.showMessage(TaskMonitor.Level.ERROR, "Got " 
-				+ response.getStatusLine().getStatusCode() + " code from server");
 			return null;
 		}
 			
@@ -142,7 +150,9 @@ public class RemoteServer {
 		MultipartEntityBuilder builder = MultipartEntityBuilder.create(); //builds the entity from the JSON data, entity= entire request/response w/o status/request line
 		builder.addTextBody("data", jsonData.toString());
 		HttpEntity entity = builder.build();
+		System.out.println("entity: " + entity.toString());
 		httpPost.setEntity(entity); //posts the entity
+		System.out.println("httpPost: " + httpPost.toString());
 		CloseableHttpResponse response = httpClient.execute(httpPost); //is this the jobID by itself or does it have to be called with some method?
 		
 		return response;
@@ -152,7 +162,7 @@ public class RemoteServer {
 	//CyJobExcService has a checkStatus() and gets results: translate to CyJobStatus that is an ENUM
 	//replace the handle command with an appropriate command of remote server
 	//parse the json
-	public JSONObject fetchJSON(String uri, TaskMonitor monitor) throws Exception {
+	public JSONObject fetchJSON(String uri) throws Exception {
 		System.out.println("Fetching JSON from: "+uri);
 		
 		CloseableHttpClient httpclient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
@@ -160,8 +170,6 @@ public class RemoteServer {
 		
 		int statusCode = response.getStatusLine().getStatusCode();
 		if (statusCode != 200 && statusCode != 202) {
-			monitor.showMessage(TaskMonitor.Level.ERROR, "Got "+
-			                    response.getStatusLine().getStatusCode()+" code from server");
 			return null;
 		}
 		HttpEntity entity = response.getEntity();
@@ -213,12 +221,14 @@ public class RemoteServer {
 		return null;
 	}
 		
-	public void submitJob(TaskMonitor monitor) {
+	public void submitJob() {
 		
 			//first, make JSONObject of the data file
 		JSONObject data = null;
 		try {
+			System.out.println("Creating JSON");
 			data = createJSONObjectFromData(inputFile);
+			System.out.println("JSON created from data");
 		} catch (Exception e) {
 			System.out.println("Error in creating JSONObject from data: " + e.getMessage());
 		}
@@ -230,7 +240,7 @@ public class RemoteServer {
 			//POST (send) the data to the server and get the jobID as the result
 		JSONObject jobIDResponse = null;
 		try {
-			jobIDResponse = postFile(serviceURI, data, monitor);
+			jobIDResponse = postFile(serviceURI, data);
 		} catch (Exception e) {
 			System.out.println("Exception in postFile: " + e.getMessage());
 		}
@@ -239,12 +249,12 @@ public class RemoteServer {
 		String jobID = jobIDResponse.get("jobId").toString();
 		System.out.println(jobID);
 		
-		ClusterJob clusterJob = new ClusterJob("ClusterJob", PROD_PATH, executionService, dataService, jobHandler, jobID);
+		//ClusterJob clusterJob = new ClusterJob("ClusterJob", PROD_PATH, executionService, dataService, jobHandler, jobID);
 		
 			//GET the response containing the status from the server
 		JSONObject statusResponse = null;
 		try {
-			statusResponse = fetchJSON(serviceURI, monitor);
+			statusResponse = fetchJSON(serviceURI);
 		} catch (Exception e) { 
 			System.out.println("Exception in fetchJSON: " + e.getMessage());
 		}
@@ -256,4 +266,6 @@ public class RemoteServer {
 	
 	//need to return the jobID and the status, only that is important for now!!
 		
+
+
 }
