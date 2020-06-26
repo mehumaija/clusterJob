@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.cytoscape.jobs.CyJobExecutionService;
 import org.cytoscape.jobs.CyJobStatus;
 import org.cytoscape.jobs.CyJobStatus.Status;
 import org.cytoscape.work.TaskMonitor;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -81,33 +83,47 @@ public class RemoteServer {
 		
 		System.out.println("Converting to JSON: " + dataFileName);
 			
-		Map<String, List<String>> data = new HashMap<>();
-		List<String> nodesList = new ArrayList<>();
-		List<String> edgesList = new ArrayList<>();
+		Map<String, List<JSONArray>> data = new HashMap<>();
+//		List<List<String>> nodesList = new ArrayList<>();
+		List<List<String>> edgesList = new ArrayList<>();
 		
 		try (Scanner scanner = new Scanner(new File(dataFileName))) {
 
 			while (scanner.hasNextLine()) {
-				String edge = scanner.nextLine();
-					
-				if (edge.trim().length() != 0) {
-					edgesList.add(edge);
+				String edge = scanner.nextLine();	
+				
+				ArrayList<String> edgeArray = new ArrayList<>();
+				String [] nodesAndWeights = edge.split(",");
+				for (int i = 0; i < 3; i++) {
+					edgeArray.add(nodesAndWeights[i]);
 				}
-					
-				String [] nodes = edge.split(",");
-				for (int i = 0; i < 1; i++) {
-					if (!nodesList.contains(nodes[i])) {
-						nodesList.add(nodes[i]);
-					}
-				}
+				edgesList.add(edgeArray);
+				
+//				ArrayList<String> nodeArray = new ArrayList<>();
+//				for (int i = 0; i < 1; i++) {
+//					if (!nodesList.contains(nodes[i])) {
+//						nodeArray.add(nodes[i]);
+//					}
+//				}
+//				nodesList.add(nodeArray);
 			}
 			
 		} catch (Exception e) {
 			System.out.println("Exception reading the file containing the edges data:" + e.getMessage());
 		}
-			
-		data.put("nodes", nodesList);
-		data.put("edges", edgesList);
+		
+		
+		JSONArray JSONedgesList = new JSONArray();
+		for (List<String> edge : edgesList) {
+			JSONedgesList.add(edge);
+		}
+		
+//		System.out.println("JSON edges list: " + JSONedgesList);
+//		System.out.println("edges list: " + edgesList);
+
+//		data.put("nodes", nodesList);
+		data.put("edges", JSONedgesList);
+		
 		
 	    JSONObject jsonData = new JSONObject();
 	    for (String key : data.keySet()) {
@@ -122,25 +138,26 @@ public class RemoteServer {
 		//you should use a JSONParser to parse the reply and return that.
 		//the URI is the whole URI of the service
 		//returns the status code and JSONObject (JobID)
-		//doesn't work! response status is 500!
+		//works! returns JSON jobID: {"job_id":"136b62d2-5904-413c-a430-b041a23a69bd"}
 	public JSONObject postFile(String uri, JSONObject jsonData) throws Exception {
 		System.out.println("Posting on: " + uri);
 		CloseableHttpClient httpClient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
 		
 		CloseableHttpResponse response = getPOSTresponse(uri, jsonData, httpClient);
-		System.out.println(response.toString());
+		System.out.println("HttpPOST response: " + response.toString());
 		
 		int statusCode = response.getStatusLine().getStatusCode();
-		System.out.println(statusCode);
+		System.out.println("HttpPOST status: " + statusCode);
 		if (statusCode != 200 && statusCode != 202) {
 			return null;
 		}
 			
 		BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent())); // it's just a single string that contains a JSON representation of the job id.
-			
+		
 		JSONParser parser = new JSONParser();
 		JSONObject jsonJobID = (JSONObject) parser.parse(reader); //parses the string of jobID into JSONObject
-
+		
+		
 		return jsonJobID;
 
 	}
@@ -163,12 +180,15 @@ public class RemoteServer {
 	//replace the handle command with an appropriate command of remote server
 	//parse the json
 	public JSONObject fetchJSON(String uri) throws Exception {
-		System.out.println("Fetching JSON from: "+uri);
+		System.out.println("Fetching JSON from: " + uri);
 		
 		CloseableHttpClient httpclient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
 		CloseableHttpResponse response = getGETresponse(uri, httpclient);
 		
+		System.out.println("HttpGET response: " + response.toString());
+		
 		int statusCode = response.getStatusLine().getStatusCode();
+		System.out.println("HttpGET status: " + statusCode);
 		if (statusCode != 200 && statusCode != 202) {
 			return null;
 		}
@@ -181,6 +201,7 @@ public class RemoteServer {
 	
 	private CloseableHttpResponse getGETresponse(String uri, CloseableHttpClient httpclient) throws Exception {
 		HttpGet httpGet = new HttpGet(uri);
+		System.out.println("HttpGET: " + httpGet.toString());
 		CloseableHttpResponse response = httpclient.execute(httpGet);
 		
 		return response; //pull the status and --> text string and map to the ENUM --> return ENUM
@@ -232,7 +253,7 @@ public class RemoteServer {
 		} catch (Exception e) {
 			System.out.println("Error in creating JSONObject from data: " + e.getMessage());
 		}
-		System.out.println(data);
+		System.out.println("JSON data: " + data);
 		
 			//choose the service, now leiden
 		String serviceURI = getServiceURI(PROD_PATH, "leiden");
@@ -245,9 +266,11 @@ public class RemoteServer {
 			System.out.println("Exception in postFile: " + e.getMessage());
 		}
 		
+		System.out.println("JSON jobID: " + jobIDResponse.toString());
+		
 			//gets the jobID from the JSON. Is this getter necessary? Can I just toString() the whole JSON response?
-		String jobID = jobIDResponse.get("jobId").toString();
-		System.out.println(jobID);
+		String jobID = jobIDResponse.get("job_id").toString();
+		System.out.println("Job ID: " + jobID);
 		
 		//ClusterJob clusterJob = new ClusterJob("ClusterJob", PROD_PATH, executionService, dataService, jobHandler, jobID);
 		
