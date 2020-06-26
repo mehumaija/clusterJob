@@ -22,6 +22,7 @@ import org.osgi.framework.BundleContext;
 
 
 import edu.ucsf.rbvi.clusterJob.internal.io.ClusterJobExecutionService;
+import edu.ucsf.rbvi.clusterJob.internal.io.RemoteServer;
 import edu.ucsf.rbvi.clusterJob.internal.tasks.SubmitJobTaskFactory;
 
 
@@ -35,6 +36,9 @@ public class CyActivator extends AbstractCyActivator {
 		// See if we have a graphics console or not
 		CyServiceRegistrar registrar = getService(bc, CyServiceRegistrar.class);
 		CyJobManager cyJobManager = getService(bc, CyJobManager.class);
+		
+		RemoteServer rs = new RemoteServer();
+		rs.submitJob();
 
 		{
 			Properties props = new Properties();
