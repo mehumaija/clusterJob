@@ -85,14 +85,14 @@ public class RemoteServer {
 			
 		Map<String, List<JSONArray>> data = new HashMap<>();
 //		List<List<String>> nodesList = new ArrayList<>();
-		List<List<String>> edgesList = new ArrayList<>();
-		
+		List<JSONArray> edgesList = new ArrayList<>();
+
 		try (Scanner scanner = new Scanner(new File(dataFileName))) {
 
 			while (scanner.hasNextLine()) {
-				String edge = scanner.nextLine();	
+				String edge = scanner.nextLine();
 				
-				ArrayList<String> edgeArray = new ArrayList<>();
+				JSONArray edgeArray = new JSONArray();
 				String [] nodesAndWeights = edge.split(",");
 				for (int i = 0; i < 3; i++) {
 					edgeArray.add(nodesAndWeights[i]);
@@ -113,16 +113,11 @@ public class RemoteServer {
 		}
 		
 		
-		JSONArray JSONedgesList = new JSONArray();
-		for (List<String> edge : edgesList) {
-			JSONedgesList.add(edge);
-		}
-		
 //		System.out.println("JSON edges list: " + JSONedgesList);
 //		System.out.println("edges list: " + edgesList);
 
 //		data.put("nodes", nodesList);
-		data.put("edges", JSONedgesList);
+		data.put("edges", edgesList);
 		
 		
 	    JSONObject jsonData = new JSONObject();
