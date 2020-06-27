@@ -83,41 +83,40 @@ public class RemoteServer {
 		
 		System.out.println("Converting to JSON: " + dataFileName);
 			
-		Map<String, List<JSONArray>> data = new HashMap<>();
-//		List<List<String>> nodesList = new ArrayList<>();
-		List<JSONArray> edgesList = new ArrayList<>();
+		Map<String, JSONArray> data = new HashMap<>();
+		JSONArray nodesList = new JSONArray();
+		List<List<String>> edgesList = new ArrayList<>();
 
 		try (Scanner scanner = new Scanner(new File(dataFileName))) {
 
 			while (scanner.hasNextLine()) {
 				String edge = scanner.nextLine();
 				
-				JSONArray edgeArray = new JSONArray();
 				String [] nodesAndWeights = edge.split(",");
+				ArrayList<String> edgeArray = new ArrayList<>();
 				for (int i = 0; i < 3; i++) {
 					edgeArray.add(nodesAndWeights[i]);
 				}
 				edgesList.add(edgeArray);
 				
-//				ArrayList<String> nodeArray = new ArrayList<>();
-//				for (int i = 0; i < 1; i++) {
-//					if (!nodesList.contains(nodes[i])) {
-//						nodeArray.add(nodes[i]);
-//					}
-//				}
-//				nodesList.add(nodeArray);
+				for (int i = 0; i < 2; i++) {
+					if (!nodesList.contains(nodesAndWeights[i])) {
+						nodesList.add(nodesAndWeights[i]);
+					}
+				}
 			}
 			
 		} catch (Exception e) {
 			System.out.println("Exception reading the file containing the edges data:" + e.getMessage());
 		}
 		
+		JSONArray JSONedgesList  = new JSONArray();
+		for (List<String> edgeArray : edgesList) {
+			JSONedgesList.add(edgeArray);
+		}
 		
-//		System.out.println("JSON edges list: " + JSONedgesList);
-//		System.out.println("edges list: " + edgesList);
-
-//		data.put("nodes", nodesList);
-		data.put("edges", edgesList);
+		data.put("nodes", nodesList);
+		data.put("edges", JSONedgesList);
 		
 		
 	    JSONObject jsonData = new JSONObject();
