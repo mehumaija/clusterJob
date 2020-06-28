@@ -36,9 +36,6 @@ public class CyActivator extends AbstractCyActivator {
 		// See if we have a graphics console or not
 		CyServiceRegistrar registrar = getService(bc, CyServiceRegistrar.class);
 		CyJobManager cyJobManager = getService(bc, CyJobManager.class);
-		
-		RemoteServer rs = new RemoteServer();
-		rs.submitJob();
 
 		{
 			Properties props = new Properties();
