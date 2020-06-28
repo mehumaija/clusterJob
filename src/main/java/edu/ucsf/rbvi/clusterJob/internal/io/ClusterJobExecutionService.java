@@ -10,7 +10,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.json.simple.JSONObject;
-
+import org.json.simple.parser.ParseException;
 import org.cytoscape.application.CyUserLog;
 import org.cytoscape.jobs.CyJob;
 import org.cytoscape.jobs.CyJobData;
@@ -22,7 +22,7 @@ import org.cytoscape.jobs.CyJobMonitor;
 import org.cytoscape.jobs.CyJobManager;
 import org.cytoscape.service.util.CyServiceRegistrar;
 import org.cytoscape.session.CySession;
-
+import org.cytoscape.work.TaskMonitor;
 
 import edu.ucsf.rbvi.clusterJob.internal.model.ClusterJob;
 import edu.ucsf.rbvi.clusterJob.internal.model.ClusterJobDataService;
@@ -63,12 +63,12 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 	static final Logger logger = Logger.getLogger(CyUserLog.NAME);
 	static final String COMMAND = "command";
 	static final String ERROR = "errorMessage";
-	static final String JOBID = "jobId";
+	static final String JOBID = "job_id";
 	static final String STATUS = "jobStatus";
 	static final String STATUS_MESSAGE = "message";
 	static final String SUBMIT = "submit";
 	final ClusterJobDataService dataService;
-	final CyJobManager cyJobManager;
+	final CyJobManager cyJobManager; //responsible for managing all the running ClusterJobs: polls the changes in the Status, calls some methods in this class
 	final CyServiceRegistrar cyServiceRegistrar;
 
 	public enum Command {
@@ -84,6 +84,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		public String toString() { return text; }
 	}
 
+	//constructor
 	public ClusterJobExecutionService(CyJobManager manager, CyServiceRegistrar registrar) {
 		cyJobManager = manager;
 		cyServiceRegistrar = registrar;
@@ -93,6 +94,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 	@Override
 	public CyJobDataService getDataService() { return dataService; }
 
+	//create a CLusterjob
 	@Override
 	public CyJob createCyJob(String name) {
 		return new ClusterJob(name, null, this, dataService, null, null);
@@ -101,6 +103,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 	@Override
 	public String getServiceName() { return "ClusterJobExecutionService"; }
 
+	//checks whether the CyJob is a ClusterJob and cancels it, returns the status of the job
 	@Override 
 	public CyJobStatus cancelJob(CyJob job) {
 		System.out.println("Canceling the job!");
@@ -111,6 +114,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob");
 	}
 
+	//returns the status of the CLusterJob
 	@Override
 	public CyJobStatus checkJobStatus(CyJob job) {
 		if (job instanceof ClusterJob) {
@@ -120,23 +124,43 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob");
 	}
 
+	//checks if the CyJob is a ClusterJob, fetches the serialized data (JSON) using DataService methods, puts JSON information in the ClusterJob and returns the status
 	@Override
-	public CyJobStatus executeJob(CyJob job, String basePath, Map<String, Object> configuration,
+	public CyJobStatus executeJob(CyJob job, String basePath, Map<String, Object> configuration, //configuration comes from network data
 	                              CyJobData inputData) {
+		System.out.println("Inside ExecutionService executeJOb method!!");
+		
 		if (!(job instanceof ClusterJob))
-			return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob");
+			return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob"); //error message if not clusterjob
 
-		ClusterJob clJob = (ClusterJob)job;
-		Map<String, String> queryMap = convertConfiguration(configuration);
+		ClusterJob clJob = (ClusterJob)job; //converts CyJob into ClusterJob
+		Map<String, String> queryMap = convertConfiguration(configuration); //converts configuration into Map<String, String>
 
-		Object serializedData = dataService.getSerializedData(inputData);
-		queryMap.put("inputData", serializedData.toString());
-		queryMap.put(COMMAND, Command.SUBMIT.toString());
+		Object serializedData = dataService.getSerializedData(inputData); //gets serialized data (JSON) using dataService
+		System.out.println("Serialized data by execution service method: " + serializedData);
+		queryMap.put("inputData", serializedData.toString()); //...and puts it into queryMap as key: "inputData", value: String of the data
+		queryMap.put(COMMAND, Command.SUBMIT.toString()); //puts key: COMMAND, value: SUBMIT in the queryMap --> queryMap has two keys
 
-		Object value = HttpUtils.postJSON(job.getPath(), queryMap, logger);
+		//this posts the data to the server. I can replace this with RemoteServer postFile() that returns JSON of jobID
+		RemoteServer rs = new RemoteServer();
+		JSONObject JSONdata = null;
+		try {
+			JSONdata = rs.createJSONObjectFromData();
+		} catch (ParseException e) {
+			System.out.println("Error in creating JSONObject: "  + e.getMessage());
+		}
+		System.out.println("RemoteServer JSONData: " + JSONdata);
+		
+		Object value = null;
+		try {
+			value = rs.postFile(basePath, JSONdata);
+		} catch (Exception e) {
+			System.out.println("Error in postFile method: " + e.getMessage());
+		}
+//		Object value = HttpUtils.postJSON(job.getPath(), queryMap, logger); //creates new object (url, queryMap, Logger), returns JSON object
 		// value is the JSONObject returned from the query.  For our purposes
 		// the values we care about are the status and the jobID
-		if (value == null)
+		if (value == null) //if there is no JSON
 			return new CyJobStatus(Status.ERROR, "Job submission failed!");
 		JSONObject json = (JSONObject) value;
 		if (!json.containsKey(JOBID)) {
@@ -144,31 +168,43 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 			return new CyJobStatus(Status.ERROR, "Server didn't return an ID!");
 		}
 
-		String jobId = json.get(JOBID).toString();
-		clJob.setJobId(jobId);
-		clJob.setBasePath(basePath);
+		String jobId = json.get(JOBID).toString(); //gets the job ID from the JSON Object
+		clJob.setJobId(jobId); //...and sets it to the ClusterJob 
+		//everything above this is to get the job ID from the JSON jobID repsonse from postFile() and put it in the ClusterJob object
+		
+		clJob.setBasePath(basePath); //...and also sets the basePath to the Cluster Job
+		
+		//getting status
+		JSONObject statusResponse = null;
+		try {
+			statusResponse = rs.fetchJSON(basePath);
+		} catch (Exception e) {
+			System.out.println("Exception in fetchJSON: " + e.getMessage());
+		}
 
+		CyJobStatus jobStatus = getStatus(statusResponse, null);
 		// return getStatus(json, "Job '"+jobId+"' submitted");
-		return getStatus(json, null);
+		return jobStatus;
 	}
 
+	//fetches JSON object, deserializes the data and puts it to CyJobData
 	@Override
 	public CyJobStatus fetchResults(CyJob job, CyJobData data) {
 		if (job instanceof ClusterJob) {
-			JSONObject result = handleCommand((ClusterJob)job, Command.FETCH, null);
+			JSONObject result = handleCommand((ClusterJob)job, Command.FETCH, null); //handles command FETCH --> argMap is null --> JSON object runs the command
 
-			// Get the unserialized data
+			// Get the unserialized data, dataService deserializes the data (the JSON object), CyJobData is basically a HashMap
 			CyJobData newData = dataService.deserialize(result);
 
-			// Merge it in
+			// Merge it in, move the information from newData to data
 			for (String key: newData.keySet()) {
 				data.put(key, newData.get(key));
 			}
 			CyJobStatus resultStatus = getStatus(result, null);
 			if (resultStatus == null)
-				return new CyJobStatus(Status.FINISHED, "Data fetched");
+				return new CyJobStatus(Status.FINISHED, "Data fetched"); //returns status FINISHED if succesfull
 		}
-		return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob");
+		return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob"); //if not a clusterjob
 	}
 
 	@Override
@@ -192,6 +228,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		return job;
 	}
 
+	//getter, creates new ClusterJob, puts this as the ExecutionService, the same DataService as in this, returns the new clusterjob
 	private CyJob getCyJob(String name, String basePath, String jobId) {
 		return new ClusterJob(name, basePath, this, dataService, null, jobId);
 	}
@@ -215,6 +252,8 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		}
 	}
 
+	//compare f ex "done" and map that to the status ENUM
+	//added return new CyJobStatus
 	private CyJobStatus getStatus(JSONObject obj, String message) {
 		if (obj.containsKey(STATUS)) {
 			Status status = Status.valueOf((String)obj.get(STATUS));
@@ -222,6 +261,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 			if (obj.containsKey(STATUS_MESSAGE)) {
 				if (message == null || message.length() == 0)
 					message = (String)obj.get(STATUS_MESSAGE);
+				return new CyJobStatus(status, message);
 			}
 			return new CyJobStatus(status, message);
 		} else if (obj.containsKey(ERROR)) {
@@ -230,15 +270,16 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		return null;
 	}
 
-	private JSONObject handleCommand(ClusterJob job, Command command, Map<String, String> argMap) {
+	private JSONObject handleCommand(ClusterJob job, Command command, Map<String, String> argMap) { //argMap contains COMMAND and a JOB ID
 		if (argMap == null)
 			argMap = new HashMap<>();
 
 		argMap.put(COMMAND, command.toString());
 		argMap.put(JOBID, job.getJobId());
-		return (JSONObject)HttpUtils.postJSON(job.getPath(), argMap, logger);
+		return (JSONObject)HttpUtils.postJSON(job.getPath(), argMap, logger); //returns JSONobject, puts in the job path (url), argMap (command and job id) and Logger
 	}
 
+	//turns Map<String, Object> into Map<String, String>
 	private Map<String, String> convertConfiguration(Map<String, Object> config) {
 		Map<String, String> map = new HashMap<>();
 		if (config == null || config.size() == 0)
