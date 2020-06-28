@@ -57,8 +57,10 @@ public class RemoteServer {
 	}
 		
 		//make the choice between different clustering algorithms/servers, this works
-	public String getServiceURI(String server, String service) {
-			
+	public String getServiceURI(String service) {
+		
+		String server = PROD_PATH;
+		
 		if (service.equals("leiden")) {
 			return server + "service/leiden?objective_function=modularity&iterations=4";
 		} else if (service.equals("fastgreedy")) {
@@ -78,16 +80,67 @@ public class RemoteServer {
 		return null;
 	}
 		
-	//read the file and create JSONObject, this works
-	public JSONObject createJSONObjectFromData(String dataFileName) throws ParseException {
+	public List<String> createNodesList() {
+		List<String> nodesList = new ArrayList<>();
+
+		try (Scanner scanner = new Scanner(new File(this.inputFile))) {
+
+			while (scanner.hasNextLine()) {
+				String edge = scanner.nextLine();
+				
+				String [] nodesAndWeights = edge.split(",");
+				
+				for (int i = 0; i < 2; i++) {
+					if (!nodesList.contains(nodesAndWeights[i])) {
+						nodesList.add(nodesAndWeights[i]);
+					}
+				}
+			}
+			
+		} catch (Exception e) {
+			System.out.println("Exception reading the file containing the edges data:" + e.getMessage());
+		}
 		
-		System.out.println("Converting to JSON: " + dataFileName);
+		return nodesList;
+	}
+	
+	public List<List<String>> createEdgesList() {
+		
+		List<List<String>> edgesList = new ArrayList<>();
+		
+		try (Scanner scanner = new Scanner(new File(this.inputFile))) {
+			
+			while (scanner.hasNextLine()) {
+				String edge = scanner.nextLine();
+				
+				String [] nodesAndWeights = edge.split(",");
+				ArrayList<String> edgeArray = new ArrayList<>();
+				for (int i = 0; i < 3; i++) {
+					edgeArray.add(nodesAndWeights[i]);
+				}
+				edgesList.add(edgeArray);
+			}
+		} catch(Exception e) {
+			System.out.println("Exception reading the file containing the edges data:" + e.getMessage());
+		}
+		
+		return edgesList;
+		
+	}
+	
+
+	
+	//read the file and create JSONObject, this works
+	public JSONObject createJSONObjectFromData() throws ParseException {
+
+		System.out.println("Converting to JSON: " + this.inputFile);
 			
 		Map<String, JSONArray> data = new HashMap<>();
-		JSONArray nodesList = new JSONArray();
+		JSONArray nodesArray = new JSONArray();
+		List<String> nodesList = new ArrayList<>();
 		List<List<String>> edgesList = new ArrayList<>();
 
-		try (Scanner scanner = new Scanner(new File(dataFileName))) {
+		try (Scanner scanner = new Scanner(new File(this.inputFile))) {
 
 			while (scanner.hasNextLine()) {
 				String edge = scanner.nextLine();
@@ -100,8 +153,8 @@ public class RemoteServer {
 				edgesList.add(edgeArray);
 				
 				for (int i = 0; i < 2; i++) {
-					if (!nodesList.contains(nodesAndWeights[i])) {
-						nodesList.add(nodesAndWeights[i]);
+					if (!nodesArray.contains(nodesAndWeights[i])) {
+						nodesArray.add(nodesAndWeights[i]);
 					}
 				}
 			}
@@ -115,7 +168,7 @@ public class RemoteServer {
 			JSONedgesList.add(edgeArray);
 		}
 		
-		data.put("nodes", nodesList);
+		data.put("nodes", nodesArray);
 		data.put("edges", JSONedgesList);
 		
 		
@@ -242,7 +295,7 @@ public class RemoteServer {
 		JSONObject data = null;
 		try {
 			System.out.println("Creating JSON");
-			data = createJSONObjectFromData(inputFile);
+			data = createJSONObjectFromData();
 			System.out.println("JSON created from data");
 		} catch (Exception e) {
 			System.out.println("Error in creating JSONObject from data: " + e.getMessage());
@@ -250,7 +303,7 @@ public class RemoteServer {
 		System.out.println("JSON data: " + data);
 		
 			//choose the service, now leiden
-		String serviceURI = getServiceURI(PROD_PATH, "leiden");
+		String serviceURI = getServiceURI("leiden");
 			
 			//POST (send) the data to the server and get the jobID as the result
 		JSONObject jobIDResponse = null;
