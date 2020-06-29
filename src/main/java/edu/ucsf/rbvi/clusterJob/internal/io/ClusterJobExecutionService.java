@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.cytoscape.application.CyUserLog;
 import org.cytoscape.jobs.CyJob;
@@ -136,27 +137,29 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		ClusterJob clJob = (ClusterJob)job; //converts CyJob into ClusterJob
 		Map<String, String> queryMap = convertConfiguration(configuration); //converts configuration into Map<String, String>
 
-		Object serializedData = dataService.getSerializedData(inputData); //gets serialized data (JSON) using dataService
-		System.out.println("Serialized data by execution service method: " + serializedData);
+		String serializedData = dataService.getSerializedData(inputData); //gets serialized data (JSON) using dataService
 		queryMap.put("inputData", serializedData.toString()); //...and puts it into queryMap as key: "inputData", value: String of the data
 		queryMap.put(COMMAND, Command.SUBMIT.toString()); //puts key: COMMAND, value: SUBMIT in the queryMap --> queryMap has two keys
-
-		//this posts the data to the server. I can replace this with RemoteServer postFile() that returns JSON of jobID
-		RemoteServer rs = new RemoteServer();
-		JSONObject JSONdata = null;
-		try {
-			JSONdata = rs.createJSONObjectFromData();
-		} catch (ParseException e) {
-			System.out.println("Error in creating JSONObject: "  + e.getMessage());
-		}
-		System.out.println("RemoteServer JSONData: " + JSONdata);
 		
+		JSONParser parser = new JSONParser();
+		JSONObject jsonData = null;
+		try {
+			jsonData = (JSONObject) parser.parse(serializedData);
+		} catch (ParseException e1) {
+			System.out.println("JSONObject conversion failed: " + e1.getMessage());
+		}
+
+		System.out.println("JSON Data: " + jsonData);
+		//this posts the data to the server. I can replace this with RemoteServer postFile() that returns JSON of jobID
+		
+		RemoteServer rs = new RemoteServer();
 		Object value = null;
 		try {
-			value = rs.postFile(basePath, JSONdata);
+			value = rs.postFile(basePath, jsonData);
 		} catch (Exception e) {
 			System.out.println("Error in postFile method: " + e.getMessage());
 		}
+		System.out.println("JSON Job ID: " + value);
 //		Object value = HttpUtils.postJSON(job.getPath(), queryMap, logger); //creates new object (url, queryMap, Logger), returns JSON object
 		// value is the JSONObject returned from the query.  For our purposes
 		// the values we care about are the status and the jobID
@@ -170,9 +173,11 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 
 		String jobId = json.get(JOBID).toString(); //gets the job ID from the JSON Object
 		clJob.setJobId(jobId); //...and sets it to the ClusterJob 
+		System.out.println("ClusterJob jobID: " + clJob.getJobId());
 		//everything above this is to get the job ID from the JSON jobID repsonse from postFile() and put it in the ClusterJob object
 		
 		clJob.setBasePath(basePath); //...and also sets the basePath to the Cluster Job
+		System.out.println("ClusterJob BasePath: " + clJob.getBasePath());
 		
 		//getting status
 		JSONObject statusResponse = null;
