@@ -35,6 +35,7 @@ public class ClusterJobDataService implements CyJobDataService {
 	final private CyNetworkManager networkManager;
 	final private CyNetworkFactory networkFactory;
 
+	//constructor
 	public ClusterJobDataService(CyServiceRegistrar registrar) {
 		this.registrar = registrar;
 		this.networkManager = registrar.getService(CyNetworkManager.class);
@@ -44,19 +45,22 @@ public class ClusterJobDataService implements CyJobDataService {
 	@Override
 	public String getServiceName() { return "ClusterJobDataService"; }
 
+	//puts key-value String, Object pair into a ClusterJobData (HashMap), returns the ClusterJobData object
 	@Override
 	public CyJobData addData(CyJobData data, String key, Object value) {
 		if (data == null)
 			data = new ClusterJobData();
-		data.put(key, data);
+		data.put(key, value);
 		return data;
 	}
 
+	//uses the addData method above to add data of different structure that is String, Map
 	@Override
 	public CyJobData addData(CyJobData data, String key, Map<Object, Object> map) {
 		return addData(data, key, (Object)map);
 	}
 
+	//puts nodes and edges from a network into ClusterJobData object: key, netMap; netMap = "nodes", nodesList and "edges", edgesList
 	@Override
 	public CyJobData addData(CyJobData data, String key, CyNetwork network, 
 	                         List<? extends CyIdentifiable> nodesAndEdges,
@@ -68,11 +72,13 @@ public class ClusterJobDataService implements CyJobDataService {
 		addCyIdentifiable(netMap, network, network);
 		List<Map<String, Object>> nodeList = new ArrayList<>();
 		List<Map<String, Object>> edgeList = new ArrayList<>();
+		
+		//sorting nodes and edges in nodesAndEdges
 		for (CyIdentifiable id: nodesAndEdges) {
-			if (id instanceof CyNode) {
+			if (id instanceof CyNode) { //checks if the members of nodesAndEdges are CyNodes
 				Map<String, Object> node = makeNodeMap(network, (CyNode)id, nodeColumns);
 				nodeList.add(node);
-			} else if (id instanceof CyEdge) {
+			} else if (id instanceof CyEdge) { //checks if the members of nodesAndEdges are CyEdges
 				Map<String, Object> edge = makeEdgeMap(network, (CyEdge)id, edgeColumns);
 				edgeList.add(edge);
 			}
@@ -81,15 +87,17 @@ public class ClusterJobDataService implements CyJobDataService {
 			netMap.put("nodes", nodeList);
 		if (edgeList.size() > 0)
 			netMap.put("edges", edgeList);
-		data.put(key, netMap);
+		data.put(key, netMap); //ClusterJobData is a HashMap - key: "network", value: "netMap"
 		return data;
 	}
 
+	//returns a new ClusterJobData object
 	@Override
 	public CyJobData getDataInstance() {
 		return new ClusterJobData();
 	}
 
+	//returns the data attached to a key in ClusterJobData (for example a map of nodes and edges)
 	@Override
 	public Object getData(CyJobData data, String key) {
 		if (!data.containsKey(key))
@@ -97,6 +105,7 @@ public class ClusterJobDataService implements CyJobDataService {
 		return data.get(key);
 	}
 
+	//returns the data attached to a key in CLusterJobData in Map<Object, Object> format for example netMap containing nodes, nodesList
 	@Override
 	public Map<Object, Object> getMapData(CyJobData data, String key) {
 		if (!data.containsKey(key))
@@ -108,6 +117,7 @@ public class ClusterJobDataService implements CyJobDataService {
 		return null;
 	}
 
+	//
 	@Override
 	public CyNetwork getNetworkData(CyJobData data, String key) {
 		if (!data.containsKey(key)) {
@@ -120,8 +130,8 @@ public class ClusterJobDataService implements CyJobDataService {
 			return null;
 		}
 
-		Map<String, Object> netMap = (Map<String, Object>)obj;
-		Long networkSUID = (Long)netMap.get("id");
+		Map<String, Object> netMap = (Map<String, Object>)obj; //gets the value attached to a key in ClusterJobData, that is netMap
+		Long networkSUID = (Long)netMap.get("id"); //netMap keys are "id" or "name"
 		String networkName = (String)netMap.get("name");
 
 		CyJob job = null;
@@ -150,6 +160,7 @@ public class ClusterJobDataService implements CyJobDataService {
 					}
 				}
 			}
+
 			suidMap = SUIDUtil.restoreSUIDs(job, network, oldIds, false);
 		}
 
@@ -167,7 +178,8 @@ public class ClusterJobDataService implements CyJobDataService {
 		return network;
 	}
 
-	public Object getSerializedData(CyJobData data) {
+	//returns JSON of the ClusterJobData 
+	public String getSerializedData(CyJobData data) {
 		// Convert the data into JSON
 		StringBuilder sb = new StringBuilder();
 		sb.append("{\n");
@@ -181,6 +193,7 @@ public class ClusterJobDataService implements CyJobDataService {
 		return sb.toString();
 	}
 
+	//deserializes JSON into ClusterJobData object
 	@Override
 	public CyJobData deserialize(InputStream inputStream) {
 		return deserialize(new BufferedReader(new InputStreamReader(inputStream)));
