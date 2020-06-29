@@ -178,6 +178,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		
 		clJob.setBasePath(basePath); //...and also sets the basePath to the Cluster Job
 		System.out.println("ClusterJob BasePath: " + clJob.getBasePath());
+		//until here, everything works!
 		
 		//getting status
 		JSONObject statusResponse = null;
