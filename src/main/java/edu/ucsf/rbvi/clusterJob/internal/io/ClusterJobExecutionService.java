@@ -129,7 +129,6 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 	@Override
 	public CyJobStatus executeJob(CyJob job, String basePath, Map<String, Object> configuration, //configuration comes from network data
 	                              CyJobData inputData) {
-		System.out.println("Inside ExecutionService executeJOb method!!");
 		
 		if (!(job instanceof ClusterJob))
 			return new CyJobStatus(Status.ERROR, "CyJob is not a ClusterJob"); //error message if not clusterjob
@@ -146,24 +145,20 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		try {
 			jsonData = (JSONObject) parser.parse(serializedData);
 		} catch (ParseException e1) {
-			System.out.println("JSONObject conversion failed: " + e1.getMessage());
+			System.out.println("Data to JSONObject conversion failed: " + e1.getMessage());
 		}
-
 		System.out.println("JSON Data: " + jsonData);
-		//this posts the data to the server. I can replace this with RemoteServer postFile() that returns JSON of jobID
 		
 		RemoteServer rs = new RemoteServer();
 		Object value = null;
 		try {
-			value = rs.postFile(basePath, jsonData);
+			value = rs.postFile(rs.getServiceURI("leiden"), jsonData);
 		} catch (Exception e) {
 			System.out.println("Error in postFile method: " + e.getMessage());
 		}
 		System.out.println("JSON Job ID: " + value);
-//		Object value = HttpUtils.postJSON(job.getPath(), queryMap, logger); //creates new object (url, queryMap, Logger), returns JSON object
-		// value is the JSONObject returned from the query.  For our purposes
-		// the values we care about are the status and the jobID
-		if (value == null) //if there is no JSON
+		
+		if (value == null) 
 			return new CyJobStatus(Status.ERROR, "Job submission failed!");
 		JSONObject json = (JSONObject) value;
 		if (!json.containsKey(JOBID)) {
@@ -178,18 +173,18 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		
 		clJob.setBasePath(basePath); //...and also sets the basePath to the Cluster Job
 		System.out.println("ClusterJob BasePath: " + clJob.getBasePath());
-		//until here, everything works!
 		
 		//getting status
 		JSONObject statusResponse = null;
 		try {
-			statusResponse = rs.fetchJSON(basePath);
+			statusResponse = rs.fetchJSON(basePath + "status/" + jobId);
 		} catch (Exception e) {
 			System.out.println("Exception in fetchJSON: " + e.getMessage());
 		}
+		
+		System.out.println("Status response: " + statusResponse);
 
-		CyJobStatus jobStatus = getStatus(statusResponse, null);
-		// return getStatus(json, "Job '"+jobId+"' submitted");
+		CyJobStatus jobStatus = getStatus(statusResponse, "Job " + jobId + " submitted");
 		return jobStatus;
 	}
 
@@ -262,7 +257,10 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 	//added return new CyJobStatus
 	private CyJobStatus getStatus(JSONObject obj, String message) {
 		if (obj.containsKey(STATUS)) {
-			Status status = Status.valueOf((String)obj.get(STATUS));
+			Status status = Status.UNKNOWN;
+			if (obj.get(STATUS).equals("done")) {
+				status = Status.SUBMITTED;
+			}
 			// Did we get any information about our status?
 			if (obj.containsKey(STATUS_MESSAGE)) {
 				if (message == null || message.length() == 0)
@@ -282,7 +280,8 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 
 		argMap.put(COMMAND, command.toString());
 		argMap.put(JOBID, job.getJobId());
-		return (JSONObject)HttpUtils.postJSON(job.getPath(), argMap, logger); //returns JSONobject, puts in the job path (url), argMap (command and job id) and Logger
+		return null;
+		//return (JSONObject)HttpUtils.postJSON(job.getPath(), argMap, logger); //returns JSONobject, puts in the job path (url), argMap (command and job id) and Logger
 	}
 
 	//turns Map<String, Object> into Map<String, String>
