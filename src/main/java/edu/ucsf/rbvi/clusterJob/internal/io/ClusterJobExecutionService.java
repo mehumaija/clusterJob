@@ -175,16 +175,8 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		System.out.println("ClusterJob BasePath: " + clJob.getBasePath());
 		
 		//getting status
-		JSONObject statusResponse = null;
-		try {
-			statusResponse = rs.fetchJSON(basePath + "status/" + jobId);
-		} catch (Exception e) {
-			System.out.println("Exception in fetchJSON: " + e.getMessage());
-		}
-		
-		System.out.println("Status response: " + statusResponse);
+		CyJobStatus jobStatus = checkJobStatus(clJob);
 
-		CyJobStatus jobStatus = getStatus(statusResponse, "Job " + jobId + " submitted");
 		return jobStatus;
 	}
 
@@ -259,7 +251,9 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		if (obj.containsKey(STATUS)) {
 			Status status = Status.UNKNOWN;
 			if (obj.get(STATUS).equals("done")) {
-				status = Status.SUBMITTED;
+				status = Status.FINISHED;
+			} else if (obj.get(STATUS).equals("running")) {
+				status = Status.RUNNING;
 			}
 			// Did we get any information about our status?
 			if (obj.containsKey(STATUS_MESSAGE)) {
@@ -280,7 +274,18 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 
 		argMap.put(COMMAND, command.toString());
 		argMap.put(JOBID, job.getJobId());
-		return null;
+		
+		RemoteServer rs = new RemoteServer();
+		
+		JSONObject statusResponse = null;
+		try {
+			statusResponse = rs.fetchJSON(job.getBasePath() + "status/" + job.getJobId());
+		} catch (Exception e) {
+			System.out.println("Exception in fetchJSON: " + e.getMessage());
+		}
+		System.out.println("JSON status response: " + statusResponse);
+		
+		return statusResponse;
 		//return (JSONObject)HttpUtils.postJSON(job.getPath(), argMap, logger); //returns JSONobject, puts in the job path (url), argMap (command and job id) and Logger
 	}
 
@@ -295,4 +300,3 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		return map;
 	}
 }
-
