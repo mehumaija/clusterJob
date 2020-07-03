@@ -24,9 +24,9 @@ import edu.ucsf.rbvi.clusterJob.internal.io.ClusterJobExecutionService.Command;
 
 public class RemoteServer {
 
-	private String LOCAL_PATH = "http://localhost:8000/";
-	private String PROD_PATH = "http://webservices.rbvi.ucsf.edu/rest/api/v1/";
-	private String inputFile = "C:\\Users\\maikk\\Documents\\gsoc\\test_input.csv";
+	static private String LOCAL_PATH = "http://localhost:8000/";
+	static private String PROD_PATH = "http://webservices.rbvi.ucsf.edu/rest/api/v1/";
+	static private String inputFile = "C:\\Users\\maikk\\Documents\\gsoc\\test_input.csv";
 	
 	public RemoteServer() {
 	}
