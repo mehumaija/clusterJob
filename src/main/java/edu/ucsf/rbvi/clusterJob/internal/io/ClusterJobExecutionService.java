@@ -149,10 +149,9 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		}
 		System.out.println("JSON Data: " + jsonData);
 		
-		RemoteServer rs = new RemoteServer();
 		Object value = null;
 		try {
-			value = rs.postFile(rs.getServiceURI("leiden"), jsonData);
+			value = RemoteServer.postFile(RemoteServer.getServiceURI("leiden"), jsonData);
 		} catch (Exception e) {
 			System.out.println("Error in postFile method: " + e.getMessage());
 		}
@@ -278,19 +277,18 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		argMap.put(COMMAND, command.toString());
 		argMap.put(JOBID, job.getJobId());
 		
-		RemoteServer rs = new RemoteServer();
 		JSONObject response = null;
 		
 		if (command == Command.CHECK) {
 			try {
-				response = rs.fetchJSON(job.getBasePath() + "status/" + job.getJobId(), command);
+				response = RemoteServer.fetchJSON(job.getBasePath() + "status/" + job.getJobId(), command);
 			} catch (Exception e) {
 				System.out.println("Exception in fetchJSON: " + e.getMessage());
 			}
 			
 		} else if (command == Command.FETCH) {
 			try {
-				response = rs.fetchJSON(job.getBasePath() + "fetch/" + job.getJobId(), command);
+				response = RemoteServer.fetchJSON(job.getBasePath() + "fetch/" + job.getJobId(), command);
 			} catch (Exception e) {
 				System.out.println("Exception in fetchJSON: " + e.getMessage());
 			}

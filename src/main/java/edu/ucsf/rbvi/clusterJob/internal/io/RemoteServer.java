@@ -28,15 +28,13 @@ public class RemoteServer {
 	static private String PROD_PATH = "http://webservices.rbvi.ucsf.edu/rest/api/v1/";
 	static private String inputFile = "C:\\Users\\maikk\\Documents\\gsoc\\test_input.csv";
 	
-	public RemoteServer() {
-	}
 		
-	public String getBasePath() {
+	static public String getBasePath() {
 		return PROD_PATH;
 	}
 	
 		//make the choice between different clustering algorithms/servers, this works
-	public String getServiceURI(String service) {
+	static public String getServiceURI(String service) {
 		
 		String server = PROD_PATH;
 		
@@ -59,10 +57,10 @@ public class RemoteServer {
 		return null;
 	}
 		
-	public List<String> createNodesList() {
+	static public List<String> createNodesList() {
 		List<String> nodesList = new ArrayList<>();
 
-		try (Scanner scanner = new Scanner(new File(this.inputFile))) {
+		try (Scanner scanner = new Scanner(new File(inputFile))) {
 
 			while (scanner.hasNextLine()) {
 				String edge = scanner.nextLine();
@@ -83,11 +81,11 @@ public class RemoteServer {
 		return nodesList;
 	}
 	
-	public List<List<String>> createEdgesList() {
+	static public List<List<String>> createEdgesList() {
 		
 		List<List<String>> edgesList = new ArrayList<>();
 		
-		try (Scanner scanner = new Scanner(new File(this.inputFile))) {
+		try (Scanner scanner = new Scanner(new File(inputFile))) {
 			
 			while (scanner.hasNextLine()) {
 				String edge = scanner.nextLine();
@@ -111,7 +109,7 @@ public class RemoteServer {
 		//you should use a JSONParser to parse the reply and return that.
 		//the URI is the whole URI of the service
 		//returns the status code and JSONObject (JobID)
-	public JSONObject postFile(String uri, JSONObject jsonData) throws Exception {
+	static public JSONObject postFile(String uri, JSONObject jsonData) throws Exception {
 		System.out.println("Posting on: " + uri);
 		CloseableHttpClient httpClient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
 		
@@ -133,7 +131,7 @@ public class RemoteServer {
 		return jsonJobID;
 	}
 	
-	private CloseableHttpResponse getPOSTresponse(String uri, JSONObject jsonData, CloseableHttpClient httpClient) throws Exception {
+	static private CloseableHttpResponse getPOSTresponse(String uri, JSONObject jsonData, CloseableHttpClient httpClient) throws Exception {
 		HttpPost httpPost = new HttpPost(uri);
 		MultipartEntityBuilder builder = MultipartEntityBuilder.create(); //builds the entity from the JSON data, entity= entire request/response w/o status/request line
 		builder.addTextBody("data", jsonData.toString());
@@ -150,7 +148,7 @@ public class RemoteServer {
 	//CyJobExcService has a checkStatus() and gets results: translate to CyJobStatus that is an ENUM
 	//replace the handle command with an appropriate command of remote server
 	//parse the json
-	public JSONObject fetchJSON(String uri, Command command) throws Exception {
+	static public JSONObject fetchJSON(String uri, Command command) throws Exception {
 		System.out.println("Fetching JSON from: " + uri);
 		
 		CloseableHttpClient httpclient = HttpClients.createDefault();  //client = browser --> executes in the default browser of my computer?
