@@ -24,4 +24,12 @@ public class ClusterJob extends AbstractCyJob {
 	public void setBasePath(String basePath) {
 		this.path = basePath;
 	}
+	
+	public String getJobId() {
+		return this.jobId;
+	}
+	
+	public String getBasePath() {
+		return this.path;
+	}
 }

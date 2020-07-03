@@ -8,7 +8,7 @@ import org.cytoscape.jobs.CyJobData;
 
 public class ClusterJobData implements CyJobData {
 	Map<String, Object> dataStore;
-
+	
 	public ClusterJobData() {
 		dataStore = new HashMap<>();
 	}

@@ -266,7 +266,7 @@ public class ClusterJobDataService implements CyJobDataService {
 	}
 
 	private CyJobData convertJSONToCyData(JSONObject json) {
-		CyJobData data = getDataInstance();
+		CyJobData data = new ClusterJobData();
 		for (Object key: json.keySet()) {
 			Object value = json.get(key);
 			data.put(key.toString(), value);

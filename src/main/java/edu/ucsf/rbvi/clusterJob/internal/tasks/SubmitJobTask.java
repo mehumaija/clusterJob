@@ -40,10 +40,9 @@ public class SubmitJobTask extends AbstractNetworkTask {
 		CyApplicationManager appManager = registrar.getService(CyApplicationManager.class);
 		CyNetwork currentNetwork = appManager.getCurrentNetwork(); //gets the network presented in Cytoscape
 		
-		RemoteServer rs = new RemoteServer();
-		List<List<String>> edgesList = rs.createEdgesList();
-		List<String> nodesList = rs.createNodesList();
-		String basePath = rs.getServiceURI("leiden");
+		List<List<String>> edgesList = RemoteServer.createEdgesList();
+		List<String> nodesList = RemoteServer.createNodesList();
+		String basePath = RemoteServer.getBasePath();
 		
 		// Get our initial job
 		CyJob job = executionService.createCyJob("ClusterJob"); //creates a new ClusterJob object
@@ -64,7 +63,8 @@ public class SubmitJobTask extends AbstractNetworkTask {
 			monitor.showMessage(TaskMonitor.Level.ERROR, exStatus.toString());
 			return;
 		}
-
+		System.out.println("Back to SubmitJobTask! ExStatus is : " + exStatus);
+		
 		// Save our SUIDs in case we get saved and restored
 		SUIDUtil.saveSUIDs(job, currentNetwork, currentNetwork.getNodeList());
 
