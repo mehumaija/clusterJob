@@ -119,6 +119,7 @@ public class RemoteServer {
 		System.out.println("HttpPOST response: " + response.toString());
 		
 		int statusCode = response.getStatusLine().getStatusCode();
+		System.out.println("HttpPOST status: " + statusCode);
 		if (statusCode != 200 && statusCode != 202) {
 			return null;
 		}
@@ -130,14 +131,16 @@ public class RemoteServer {
 		
 		
 		return jsonJobID;
-
 	}
 	
 	private CloseableHttpResponse getPOSTresponse(String uri, JSONObject jsonData, CloseableHttpClient httpClient) throws Exception {
 		HttpPost httpPost = new HttpPost(uri);
 		MultipartEntityBuilder builder = MultipartEntityBuilder.create(); //builds the entity from the JSON data, entity= entire request/response w/o status/request line
+		builder.addTextBody("data", jsonData.toString());
 		HttpEntity entity = builder.build();
+		System.out.println("entity: " + entity.toString());
 		httpPost.setEntity(entity); //posts the entity
+		System.out.println("httpPost: " + httpPost.toString());
 		CloseableHttpResponse response = httpClient.execute(httpPost); //is this the jobID by itself or does it have to be called with some method?
 		
 		return response;
