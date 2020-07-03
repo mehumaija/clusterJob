@@ -176,7 +176,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		
 		//getting status
 		CyJobStatus jobStatus = checkJobStatus(clJob);
-
+		
 		return jobStatus;
 	}
 
@@ -184,11 +184,14 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 	@Override
 	public CyJobStatus fetchResults(CyJob job, CyJobData data) {
 		if (job instanceof ClusterJob) {
+			//handleCommand gives whatever HttpGET gives.
 			JSONObject result = handleCommand((ClusterJob)job, Command.FETCH, null); //handles command FETCH --> argMap is null --> JSON object runs the command
-
+			System.out.println("JSON results: " + result);
+			
 			// Get the unserialized data, dataService deserializes the data (the JSON object), CyJobData is basically a HashMap
-			CyJobData newData = dataService.deserialize(result);
-
+			CyJobData newData = dataService.deserialize(result); 
+			System.out.println("CyJobData results: " + newData.getAllValues());
+			
 			// Merge it in, move the information from newData to data
 			for (String key: newData.keySet()) {
 				data.put(key, newData.get(key));
@@ -276,17 +279,24 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		argMap.put(JOBID, job.getJobId());
 		
 		RemoteServer rs = new RemoteServer();
+		JSONObject response = null;
 		
-		JSONObject statusResponse = null;
-		try {
-			statusResponse = rs.fetchJSON(job.getBasePath() + "status/" + job.getJobId());
-		} catch (Exception e) {
-			System.out.println("Exception in fetchJSON: " + e.getMessage());
+		if (command == Command.CHECK) {
+			try {
+				response = rs.fetchJSON(job.getBasePath() + "status/" + job.getJobId(), command);
+			} catch (Exception e) {
+				System.out.println("Exception in fetchJSON: " + e.getMessage());
+			}
+			
+		} else if (command == Command.FETCH) {
+			try {
+				response = rs.fetchJSON(job.getBasePath() + "fetch/" + job.getJobId(), command);
+			} catch (Exception e) {
+				System.out.println("Exception in fetchJSON: " + e.getMessage());
+			}
 		}
-		System.out.println("JSON status response: " + statusResponse);
 		
-		return statusResponse;
-		//return (JSONObject)HttpUtils.postJSON(job.getPath(), argMap, logger); //returns JSONobject, puts in the job path (url), argMap (command and job id) and Logger
+		return response;
 	}
 
 	//turns Map<String, Object> into Map<String, String>
@@ -300,3 +310,4 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		return map;
 	}
 }
+
