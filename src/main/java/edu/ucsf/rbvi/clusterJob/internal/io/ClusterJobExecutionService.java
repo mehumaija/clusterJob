@@ -147,7 +147,7 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		} catch (ParseException e1) {
 			System.out.println("Data to JSONObject conversion failed: " + e1.getMessage());
 		}
-		System.out.println("JSON Data: " + jsonData);
+		//System.out.println("JSON Data: " + jsonData);
 		
 		Object value = null;
 		try {
@@ -174,9 +174,8 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		System.out.println("ClusterJob BasePath: " + clJob.getBasePath());
 		
 		//getting status
-		CyJobStatus jobStatus = checkJobStatus(clJob);
 		
-		return jobStatus;
+		return new CyJobStatus(Status.FINISHED, "Data posted");
 	}
 
 	//fetches JSON object, deserializes the data and puts it to CyJobData
@@ -185,7 +184,6 @@ public class ClusterJobExecutionService implements CyJobExecutionService {
 		if (job instanceof ClusterJob) {
 			//handleCommand gives whatever HttpGET gives.
 			JSONObject result = handleCommand((ClusterJob)job, Command.FETCH, null); //handles command FETCH --> argMap is null --> JSON object runs the command
-			System.out.println("JSON results: " + result);
 			
 			// Get the unserialized data, dataService deserializes the data (the JSON object), CyJobData is basically a HashMap
 			CyJobData newData = dataService.deserialize(result); 
