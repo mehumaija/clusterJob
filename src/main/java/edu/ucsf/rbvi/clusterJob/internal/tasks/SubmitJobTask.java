@@ -2,7 +2,9 @@ package edu.ucsf.rbvi.clusterJob.internal.tasks;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.jobs.CyJob;
@@ -46,7 +48,12 @@ public class SubmitJobTask extends AbstractNetworkTask {
 		CyNetwork currentNetwork = appManager.getCurrentNetwork(); //gets the network presented in Cytoscape
 		System.out.println("Current network: " + currentNetwork.toString());
 		
-		List<String> nodeArray = getNetworkNodes(currentNetwork);
+		HashMap<Long, String> nodeMap = getNetworkNodes(currentNetwork);
+		List<String> nodeArray = new ArrayList<>();
+		for (Long nodeSUID : nodeMap.keySet()) {
+			nodeArray.add(nodeMap.get(nodeSUID));
+		}
+		
 		System.out.println("Node array from the current network: " + nodeArray);
 		
 		List<List<String>> edgeArray = getNetworkEdges(currentNetwork);
@@ -83,15 +90,16 @@ public class SubmitJobTask extends AbstractNetworkTask {
 	}
 	
 	
-	private List<String> getNetworkNodes(CyNetwork currentNetwork) {
+	private HashMap<Long, String> getNetworkNodes(CyNetwork currentNetwork) {
 		List<CyNode> cyNodeList = currentNetwork.getNodeList();
 		
-		List<String> nodeArray = new ArrayList<>();
+		HashMap<Long, String> nodeMap = new HashMap<>();
 		for (CyNode node : cyNodeList) {
-			nodeArray.add(currentNetwork.getRow(node).get(CyNetwork.NAME, String.class));
+			String nodeName = currentNetwork.getRow(node).get(CyNetwork.NAME, String.class);
+			nodeMap.put(node.getSUID(), nodeName);
 		}
 		
-		return nodeArray;
+		return nodeMap;
 	}
 	
 	private List<List<String>> getNetworkEdges(CyNetwork currentNetwork) {
