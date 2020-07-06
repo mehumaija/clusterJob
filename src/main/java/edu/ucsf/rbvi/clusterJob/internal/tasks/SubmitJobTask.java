@@ -95,6 +95,8 @@ public class SubmitJobTask extends AbstractNetworkTask {
 	}
 	
 	private List<List<String>> getNetworkEdges(CyNetwork currentNetwork) {
+		CyTable edgeTable = currentNetwork.getDefaultEdgeTable();
+		System.out.println("Edge columns: " + edgeTable.getColumns());
 		List<CyEdge> cyEdgeList = currentNetwork.getEdgeList();
 		
 		List<List<String>> edgeArray = new ArrayList<>();
@@ -106,8 +108,15 @@ public class SubmitJobTask extends AbstractNetworkTask {
 			String sourceName = currentNetwork.getRow(source).get(CyNetwork.NAME, String.class);
 			sourceTargetWeight.add(sourceName);
 			String targetName = currentNetwork.getRow(target).get(CyNetwork.NAME, String.class);
-			sourceTargetWeight.add(targetName);
-			sourceTargetWeight.add("1");
+			sourceTargetWeight.add(targetName); 
+			
+			Double weight = currentNetwork.getRow(edge).get("weight", Double.class);
+			
+			if (weight == null) {
+				sourceTargetWeight.add("1");
+			} else {
+				sourceTargetWeight.add(String.valueOf(weight));
+			}
 			
 			edgeArray.add(sourceTargetWeight);
 		}
