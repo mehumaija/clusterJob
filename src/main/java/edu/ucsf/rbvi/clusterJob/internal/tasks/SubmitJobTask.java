@@ -56,7 +56,7 @@ public class SubmitJobTask extends AbstractNetworkTask {
 		
 		System.out.println("Node array from the current network: " + nodeArray);
 		
-		List<List<String>> edgeArray = getNetworkEdges(currentNetwork);
+		List<List<String>> edgeArray = getNetworkEdges(currentNetwork, nodeMap);
 		System.out.println("Edges from the current network: " + edgeArray);
 		
 		String basePath = RemoteServer.getBasePath();
@@ -102,7 +102,7 @@ public class SubmitJobTask extends AbstractNetworkTask {
 		return nodeMap;
 	}
 	
-	private List<List<String>> getNetworkEdges(CyNetwork currentNetwork) {
+	private List<List<String>> getNetworkEdges(CyNetwork currentNetwork, Map<Long, String> nodeMap) {
 		CyTable edgeTable = currentNetwork.getDefaultEdgeTable();
 		System.out.println("Edge columns: " + edgeTable.getColumns());
 		List<CyEdge> cyEdgeList = currentNetwork.getEdgeList();
@@ -113,9 +113,9 @@ public class SubmitJobTask extends AbstractNetworkTask {
 			
 			CyNode source = edge.getSource();
 			CyNode target = edge.getTarget();
-			String sourceName = currentNetwork.getRow(source).get(CyNetwork.NAME, String.class);
+			String sourceName = nodeMap.get(source.getSUID());
 			sourceTargetWeight.add(sourceName);
-			String targetName = currentNetwork.getRow(target).get(CyNetwork.NAME, String.class);
+			String targetName = nodeMap.get(target.getSUID());
 			sourceTargetWeight.add(targetName); 
 			
 			Double weight = currentNetwork.getRow(edge).get("weight", Double.class);
