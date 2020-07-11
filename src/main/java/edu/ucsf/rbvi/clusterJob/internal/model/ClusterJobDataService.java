@@ -183,10 +183,10 @@ public class ClusterJobDataService implements CyJobDataService {
 		// Convert the data into JSON
 		StringBuilder sb = new StringBuilder();
 		sb.append("{\n");
-		for (String key: data.keySet()) {
-			Object obj = data.get(key);
+		for (String key: data.keySet()) { //the keys are "nodes" and "edges"
+			Object obj = data.get(key); // obj is the List associated with the key
 			sb.append(quote(key)+": ");
-			convertToJSON(obj, sb);
+			convertToJSON(obj, sb); // convert to JSON takes the List as a parameter
 			sb.append(",\n");
 		}
 		sb.append("}");
@@ -235,10 +235,18 @@ public class ClusterJobDataService implements CyJobDataService {
 			List<?> list = (List)obj;
 			sb.append("[");
 			boolean first = true;
-			for (Object o: list) {
+			for (Object o: list) { // for all the members of the list (for example in edges a member is one String[], in nodes it's String)
 				if (!first) sb.append(",");
 				else first = false;
 				convertToJSON(o, sb);
+			}
+			sb.append("]\n");
+		} else if (obj instanceof String[]){ 
+			String[] array = (String[]) obj;
+			sb.append("[");
+			for (int i = 0; i < array.length; i++) {
+				convertToJSON(array[i], sb);
+				if (i != array.length - 1) sb.append(",");
 			}
 			sb.append("]\n");
 		} else if (obj instanceof Map) {
@@ -256,8 +264,8 @@ public class ClusterJobDataService implements CyJobDataService {
 			sb.append(obj.toString());
 		} else if (obj instanceof Boolean) {
 			sb.append(obj.toString());
-		} else {
-			sb.append(quote(obj.toString()));
+		} else { // for a String for example
+			sb.append(quote(obj.toString())); // puts the element in "quotations"
 		}
 	}
 
